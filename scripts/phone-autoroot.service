@@ -1,0 +1,22 @@
+[Unit]
+Description=Re-root the USB-attached Galaxy S24 (e1q / SM-S921W) after every reboot
+Documentation=file:/srv/storage/work/s24-root-payloads-2026-09-30/HANDOFF-2026-10-02-kernelsu-plan.md
+# The procedure itself (solid_root.sh) lives on the array; do not start before it is mounted.
+RequiresMountsFor=/srv/storage
+
+[Service]
+Type=simple
+# System unit running as the user that owns the adb server, so no second adb server ever contends for the
+# USB device. Canonical source: /srv/storage/work/s24-root-payloads-2026-09-30/phone_autoroot.sh
+User=blackieserver
+# Use the payload pair that is proven to deliver root AFTER the socket-poisoning incident. Its channel
+# name (su_temp.sock) is distinct from the historic name, so it cannot inherit a bad stale inode.
+Environment=SOLID_HELPER=/data/local/tmp/cve-2026-43499-root2
+Environment=SOLID_PRELOAD=/data/local/tmp/cve-e1q-102-stable.so
+ExecStart=/usr/local/sbin/phone-autoroot.sh
+Restart=always
+RestartSec=15
+Nice=5
+
+[Install]
+WantedBy=multi-user.target

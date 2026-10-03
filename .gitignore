@@ -1,0 +1,9 @@
+# The extracted boot.img is 96MB — just under GitHub's 100MB soft limit,
+# but it bloats the repo and is downloadable from the firmware source.
+# Commit it if you want it self-contained; remove the line to include it.
+firmware/boot.img
+
+# OS / editor cruft
+.DS_Store
+*.swp
+*.tmp
