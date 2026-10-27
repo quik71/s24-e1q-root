@@ -9,6 +9,38 @@ root in ~12 minutes, unattended.
 
 ---
 
+## Quick start
+
+**Works on exactly one device: Galaxy S24 `SM-S921W`, firmware build `S921WVLS6DZH3`, kernel
+`6.1.145-android14-11-33419968`, bootloader stays locked.** On any other model or software update the
+exploit cannot land — check first:
+
+```bash
+adb shell getprop ro.product.model       # SM-S921W
+adb shell getprop ro.build.fingerprint   # must contain S921WVLS6DZH3
+adb shell uname -r                       # 6.1.145-android14-11-33419968
+```
+
+If that matches, from inside this folder:
+
+```bash
+adb push backups/cve-e1q-101-stable.sutemp.so /data/local/tmp/cve-e1q-102-stable.so
+adb push backups/cve-2026-43499-root.sutemp /data/local/tmp/cve-2026-43499-root2
+adb push kernelsu/ksud-e3q-S9280ZCS6DZF2-kdp /data/local/tmp/ksud-candB
+adb shell chmod 755 /data/local/tmp/cve-e1q-102-stable.so /data/local/tmp/cve-2026-43499-root2 /data/local/tmp/ksud-candB
+bash scripts/solid_root.sh 8
+adb shell "su -c id"                     # uid=0(root) ... context=u:r:ksu:s0  == done
+```
+
+Step 5 of [INSTALL.md](INSTALL.md) makes root come back by itself after every reboot. If you would
+rather have a chatbot walk you through it one step at a time, paste
+**[PROMPT-FOR-CHATGPT.txt](PROMPT-FOR-CHATGPT.txt)** into ChatGPT/Claude/Grok and start typing.
+
+Need a Linux machine (or WSL). Nothing is flashed and nothing is wiped; root lives in RAM, so it is
+gone at every reboot until the watcher puts it back.
+
+---
+
 ## Why this exists
 
 The bootloader is **locked** (`ro.boot.verifiedbootstate=green`, `ro.boot.flash.locked=1`). So:
@@ -51,7 +83,9 @@ kernelsu/                The one KernelSU loader that works on this device
 native-module/           Our own native e1q kernelsu.ko + the GKI build script
 scripts/                 solid_root.sh (the procedure), phone_autoroot.sh (the watcher), the unit
 tools/check-docs.py      machine-checks the user docs (paths, md5s, promised output, paste safety)
+tools/eval-doc.py        feeds the guide to a cheap model and checks it still follows it correctly
 INSTALL.md               THE SHORT VERSION — start here if you just want your phone rooted
+PROMPT-FOR-CHATGPT.txt   paste this into any chatbot and it walks a person through INSTALL.md
 firmware/                boot.img for this device (the patch target for the persistence route)
 docs/                    The full handoff write-up (read this first)
 ```
@@ -62,8 +96,16 @@ docs/                    The full handoff write-up (read this first)
 
 > If you just want your phone rooted and don't care how, read **[INSTALL.md](INSTALL.md)** instead.
 > It is written for a first-time reader **and** for a chatbot reading it to one — it has a glossary,
-> literal expected output for every command, and an exact-words error table. Keep both files honest by
-> running `python3 tools/check-docs.py` before you commit a change to either.
+> literal expected output for every command, and an exact-words error table.
+>
+> **If you want a chatbot to do the babysitting:** paste `PROMPT-FOR-CHATGPT.txt` into ChatGPT, Claude,
+> Grok or similar. It tells the model to check your model/build/kernel first, give one command at a
+> time, quote commands verbatim, invent nothing, compare your output against the expected output, and
+> treat only `su -c id` → `uid=0(root)` as success. It is kept in sync with `INSTALL.md` by the checker.
+>
+> **If you are editing any of these three files,** run `python3 tools/check-docs.py` before committing —
+> it fails if a path, an md5, or a promised output no longer matches reality. `python3 tools/eval-doc.py`
+> re-runs the follow-it-correctly test against a cheap model (needs an API key; optional).
 
 ### 0. Check your device matches before anything else
 

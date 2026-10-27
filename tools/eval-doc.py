@@ -10,11 +10,16 @@ so a human can read the raw answer and disagree.
 Needs an OpenAI-compatible endpoint. Reads DEEPSEEK_API_KEY / DEEPSEEK_BASE_URL from the
 environment or from ~/.hermes/.env. Not needed to use the repo — run it when you edit a doc.
 
-usage: python3 tools/eval-doc.py [model]     (default: deepseek-flash)
+usage: python3 tools/eval-doc.py [model] [--prompt]   (default model: deepseek-flash;
+       --prompt feeds the chatbot helper file instead of INSTALL.md)
 """
 import json, os, sys, urllib.request
 
-DOC = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "INSTALL.md")
+REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+# INSTALL.md = feed the human guide. PROMPT-FOR-CHATGPT.txt = feed the helper file a person actually
+# pastes into a chatbot, and check the helper alone still keeps a weak model on the rails.
+SOURCE = "PROMPT-FOR-CHATGPT.txt" if "--prompt" in sys.argv[2:] else "INSTALL.md"
+DOC = os.path.join(REPO, SOURCE)
 MODEL = sys.argv[1] if len(sys.argv) > 1 else "deepseek-flash"
 
 env = {}
@@ -63,5 +68,5 @@ for name, q, grade in TESTS:
     ok = grade(a)
     bad += 0 if ok else 1
     print(f"\n--- {name}: {'PASS' if ok else 'FAIL'}\nQ: {q}\nA: {a[:700]}")
-print(f"\n{len(TESTS)-bad}/{len(TESTS)} followed correctly with model={MODEL}")
+print(f"\n{len(TESTS)-bad}/{len(TESTS)} followed correctly with model={MODEL} source={SOURCE}")
 sys.exit(1 if bad else 0)

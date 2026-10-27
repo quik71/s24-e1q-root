@@ -12,13 +12,33 @@ Checks
   3. every md5 a doc claims matches the real file              (docs age, files change)
   4. every literal output string the docs promise is printed by the scripts (or is another program's)
   5. no machine-specific absolute paths (our array / our home) outside the dated handoff
+  6. README / INSTALL / the chatbot prompt teach the SAME commands — a reader must not get three
+     slightly different procedures depending on which file they opened
+  7. the chatbot prompt still carries the rules that keep a weak model safe (build gate, no
+     parallelising, "only su -c id == uid=0 is success", the exact-word error table)
 
 usage: python3 tools/check-docs.py
 """
 import os, re, subprocess, sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-DOCS = ["README.md", "INSTALL.md"]            # user-facing only; docs/ is a dated record
+DOCS = ["README.md", "INSTALL.md", "PROMPT-FOR-CHATGPT.txt"]   # user-facing only; docs/ is a dated record
+# The commands a reader must be able to copy from ANY of the three entry points. If one of these
+# drifts out of a file, that file is now teaching a different procedure than the others.
+SHARED_COMMANDS = [
+    "adb push backups/cve-e1q-101-stable.sutemp.so /data/local/tmp/cve-e1q-102-stable.so",
+    "adb push backups/cve-2026-43499-root.sutemp /data/local/tmp/cve-2026-43499-root2",
+    "adb push kernelsu/ksud-e3q-S9280ZCS6DZF2-kdp /data/local/tmp/ksud-candB",
+    "adb shell chmod 755 /data/local/tmp/cve-e1q-102-stable.so /data/local/tmp/cve-2026-43499-root2 /data/local/tmp/ksud-candB",
+    "bash scripts/solid_root.sh 8",
+    'adb shell "su -c id"',
+]
+# A chatbot prompt must still carry the gates that matter, or it will happily walk someone off a cliff.
+PROMPT_REQUIRED = ["S921WVLS6DZH3", "SM-S921W", "uid=0(root)", "CHANGE_ME", "*** SUCCESS:",
+                   "step at a time",            # paces one command at a time
+                   "one copy may run at a time",  # refuses to parallelise the grind
+                   "cfi misc_fops mismatch",      # keeps the error table
+                   "invented nothing".replace("invented nothing", "Invent nothing")]
 RUNTIME_OK = {"logs", "logs/host"}            # created by the scripts, not shipped
 EXTERNAL_MSG = [                              # strings produced by systemd/adb, not by our scripts
     "unauthorized", "Unit ", "User '", "No such file or directory", "adb: ", "1 file pushed",
@@ -90,6 +110,23 @@ for d, text in doc_text.items():
     # 5. machine-specific leftovers
     for m in re.finditer(r"(/srv/[\w/\-\.]+|/home/blackieserver[\w/\-\.]*)", text):
         fails.append(f"[host-path] {d} leaks a path that only exists on our server: {m.group(1)}")
+
+    # 6. the three entry points must teach ONE procedure, not three similar ones
+for d, t in doc_text.items():
+    for cmd in SHARED_COMMANDS:
+        if cmd not in t:
+            fails.append(f"[drift] {d} is missing/altering a command the other entry points use: {cmd}")
+
+prompt = doc_text.get("PROMPT-FOR-CHATGPT.txt", "")
+# prose in the prompt file is line-wrapped like normal writing, so compare with whitespace collapsed.
+# Commands in SHARED_COMMANDS are still matched verbatim — a command must not be reflowed.
+prompt_prose = re.sub(r"\s+", " ", prompt).lower()
+for req in PROMPT_REQUIRED:
+    if req.lower() not in prompt_prose:
+        fails.append(f"[prompt] PROMPT-FOR-CHATGPT.txt no longer carries {req!r} — a chatbot following "
+                     "it will stop enforcing that rule")
+if "PROMPT-FOR-CHATGPT.txt" not in doc_text.get("README.md", ""):
+    fails.append("[drift] README.md does not point readers at PROMPT-FOR-CHATGPT.txt")
 
 # 4. promised output really exists
 for s in PROMISED:
