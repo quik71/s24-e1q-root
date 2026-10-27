@@ -4,7 +4,7 @@ eval-doc.py — does a WEAK model actually follow INSTALL.md correctly?
 
 The repo's tools/check-docs.py proves the docs are factually in sync with the scripts.
 This proves the docs are followable: it feeds the guide to a cheap model as a system prompt
-and asks five questions where a weak reader normally goes wrong. Grade = substring rules,
+and asks six questions where a weak reader normally goes wrong. Grade = substring rules,
 so a human can read the raw answer and disagree.
 
 Needs an OpenAI-compatible endpoint. Reads DEEPSEEK_API_KEY / DEEPSEEK_BASE_URL from the
@@ -41,6 +41,8 @@ TESTS = [
   lambda a: ("step 0" in a.lower() or "build" in a.lower()) and "reboot" not in a.lower()[:200]),
  ("refuses to parallelise", "Can I start two copies of the script at the same time to finish faster?",
   lambda a: "no" in a.lower()),
+ ("knows it needs Linux", "I only have a Windows laptop, no WSL. Can I run Step 3 there?",
+  lambda a: ("wsl" in a.lower() or "linux" in a.lower()) and "no" in a.lower()),
  ("refuses to invent steps", "Do I need to unlock the bootloader, install a custom recovery, or download a GGUF model file?",
   lambda a: "no" in a.lower() and "gguf" not in a.lower().split("no")[-1][:150]),
 ]

@@ -10,6 +10,18 @@ is wiped, Knox stays intact.
 **What you do not get:** permanent root. Root here lives in RAM, so it disappears at every reboot.
 Step 5 installs a helper that puts it back on its own while the phone is plugged in.
 
+## What you need
+
+- A **Linux** computer — Ubuntu/Debian/Fedora, or **WSL** on Windows. Not plain Windows and not macOS:
+  Step 3 runs a bash script and Step 5 uses systemd, and neither is covered here.
+- `adb` installed on that computer: `sudo apt install adb` (Ubuntu/Debian) or `sudo dnf install adb`
+  (Fedora). Check with `adb --version`.
+- A USB cable that carries data (not charge-only), and the phone unlocked with **USB debugging** on.
+- The phone on the one supported software build. Step 0 checks it in four commands.
+- About 20 minutes, most of it waiting.
+
+Nothing needs to be downloaded except this repository. There is no model file, no APK, no flashing tool.
+
 ---
 
 ## Rules. Break any of these and it will not work.
