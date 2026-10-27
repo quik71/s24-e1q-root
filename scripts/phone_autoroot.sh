@@ -13,7 +13,10 @@
 #
 # Guards: never overlap a run (a concurrent attempt starves the uid-2000 pipe budget), and back off hard
 # after a failed run instead of hammering the phone.
-WORK=/srv/storage/work/s24-root-payloads-2026-09-30
+# WORK = your clone of this repo. EDIT THIS LINE (or export PHONE_ROOT_WORK before starting the unit).
+# It cannot be derived from this script's own location, because the unit installs the script into
+# /usr/local/sbin, far away from the clone it drives.
+WORK=${PHONE_ROOT_WORK:-$HOME/s24-e1q-root}
 LOG=$WORK/logs/phone-autoroot.log
 
 mkdir -p "$(dirname "$LOG")" 2>/dev/null
@@ -33,7 +36,7 @@ while true; do
         log "a solid_root run is already in flight; not starting another"
       else
         log "phone present WITHOUT root -> re-establishing"
-        if timeout 2400 bash "$WORK/solid_root.sh" 8 >> "$LOG" 2>&1; then
+        if timeout 2400 bash "$WORK/scripts/solid_root.sh" 8 >> "$LOG" 2>&1; then
           log "re-root OK: $(adb shell 'su -c id' 2>/dev/null | tr -d '\r')"
         else
           rc=$?

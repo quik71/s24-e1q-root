@@ -1,14 +1,20 @@
+# INSTALL (see INSTALL.md step 5):
+#   1. set WORK= in phone_autoroot.sh to your clone of this repo
+#   2. change User= below to your own Linux username
+#   3. sudo cp scripts/phone_autoroot.sh /usr/local/sbin/   (the ExecStart path below expects it there)
+#      sudo cp scripts/phone-autoroot.service /etc/systemd/system/
+#      sudo systemctl daemon-reload && sudo systemctl enable --now phone-autoroot
+#
+# One instance only. Two concurrent root attempts share one per-uid pipe-page budget and both fail.
+
 [Unit]
 Description=Re-root the USB-attached Galaxy S24 (e1q / SM-S921W) after every reboot
-Documentation=file:/srv/storage/work/s24-root-payloads-2026-09-30/HANDOFF-2026-10-02-kernelsu-plan.md
-# The procedure itself (solid_root.sh) lives on the array; do not start before it is mounted.
-RequiresMountsFor=/srv/storage
 
 [Service]
 Type=simple
-# System unit running as the user that owns the adb server, so no second adb server ever contends for the
-# USB device. Canonical source: /srv/storage/work/s24-root-payloads-2026-09-30/phone_autoroot.sh
-User=blackieserver
+# Must run as the user that owns the adb server, so no second adb server ever contends for the
+# USB device. CHANGE THIS to your username.
+User=CHANGE_ME
 # Use the payload pair that is proven to deliver root AFTER the socket-poisoning incident. Its channel
 # name (su_temp.sock) is distinct from the historic name, so it cannot inherit a bad stale inode.
 Environment=SOLID_HELPER=/data/local/tmp/cve-2026-43499-root2

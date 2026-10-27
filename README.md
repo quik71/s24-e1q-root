@@ -50,6 +50,7 @@ backups/                 Proven build artifacts (the helper + preload that deliv
 kernelsu/                The one KernelSU loader that works on this device
 native-module/           Our own native e1q kernelsu.ko + the GKI build script
 scripts/                 solid_root.sh (the procedure), phone_autoroot.sh (the watcher), the unit
+INSTALL.md               THE SHORT VERSION — start here if you just want your phone rooted
 firmware/                boot.img for this device (the patch target for the persistence route)
 docs/                    The full handoff write-up (read this first)
 ```
@@ -58,43 +59,95 @@ docs/                    The full handoff write-up (read this first)
 
 ## How to use it
 
-### Per boot — one command
+> If you just want your phone rooted and don't care how, read **[INSTALL.md](INSTALL.md)** instead.
+
+### 0. Check your device matches before anything else
+
+This port is for **SM-S921W on firmware build `S921WVLS6DZH3`**, kernel
+`6.1.145-android14-11-33419968`. A profile matches a device on **exact SoC + kernel + firmware
+build** — the same phone on a newer update has different symbol offsets and the exploit will not
+land. Check before you spend an afternoon:
 
 ```bash
-cd /srv/storage/work/s24-root-payloads-2026-09-30
-bash solid_root.sh 8          # 8 = max boots to grind if there is no live root
+adb shell getprop ro.product.model       # SM-S921W
+adb shell getprop ro.build.fingerprint   # must contain S921WVLS6DZH3
+adb shell uname -r                       # 6.1.145-android14-11-33419968
 ```
 
-The procedure:
+Other SM8650 targets we audited are kept in [`references/`](references/) — they are *not*
+interchangeable with this one.
 
-1. If `su -c id` already returns `uid=0`, exit immediately.
-2. Otherwise grind: reboot → wait for boot → up to 10 attempts per boot, up to N boots. A reboot is
-   forced after 3 consecutive dead attempts.
-3. Install the persistent userspace (`/data/adb/ksud`) if missing.
-4. Bind-mount the loader over `/system/bin/logcat` (DEFEX only permits privileged exec from a system
-   path) and load the module with `--allow-shell`.
-5. Verify `su -c id` → `uid=0` in `u:r:ksu:s0`, then delete the channel sockets with real root.
+### 1. Put the three files on the phone (one time)
 
-### Keep it rooted across reboots — the watcher
+They must live in `/data/local/tmp`. `/sdcard` is outside the dynamic loader's namespace and gives a
+misleading `CANNOT LINK EXECUTABLE … is not accessible for the namespace`.
 
 ```bash
-sudo systemctl start phone-autoroot.service     # resume
-sudo systemctl stop  phone-autoroot.service     # pause (e.g. phone off for the day)
-tail -f logs/phone-autoroot.log
+adb push backups/cve-e1q-101-stable.sutemp.so /data/local/tmp/cve-e1q-102-stable.so
+adb push backups/cve-2026-43499-root.sutemp   /data/local/tmp/cve-2026-43499-root2
+adb push kernelsu/ksud-e3q-S9280ZCS6DZF2-kdp  /data/local/tmp/ksud-candB
+adb shell chmod 755 /data/local/tmp/cve-e1q-102-stable.so \
+                  /data/local/tmp/cve-2026-43499-root2 /data/local/tmp/ksud-candB
 ```
 
-The watcher (`phone_autoroot.sh`) runs every 20 s: if a device is present and not rooted, it runs
-`solid_root.sh 8`. It is installed as `phone-autoroot.service` (enabled + active) on the host.
-**Pause it before unplugging the phone** — a failed run retries for up to 8 boots.
+Use the **`.sutemp`** pair (socket-renamed). The `.proven` pair is the original, kept for the
+rollback; if you use it instead, export `SOLID_PRELOAD`/`SOLID_HELPER` to those paths. Never load any
+loader except `ksud-e3q-S9280ZCS6DZF2-kdp` — see "The loader matters" below.
 
-### Verify a rooted phone
+### 2. Per boot — one command
 
 ```bash
-adb shell "su -c 'id; getenforce; grep kernelsu /proc/modules'"
+bash scripts/solid_root.sh 8          # 8 = max boots to grind if there is no live root
+```
+
+The script is location-independent: it works from any clone, and writes its logs under `logs/host/`
+inside the repo. It:
+
+1. Exits immediately if `su -c id` already returns `uid=0`.
+2. Otherwise grinds: reboot → wait for boot → up to 10 attempts per boot, up to N boots. A reboot is
+   forced after 3 consecutive dead attempts. **It reboots the phone by itself; that is normal.**
+3. Installs the persistent userspace (`/data/adb/ksud`) if missing.
+4. Bind-mounts the loader over `/system/bin/logcat` (DEFEX only permits privileged exec from a system
+   path) and loads the module with `--allow-shell`.
+5. Verifies `su -c id` → `uid=0` in `u:r:ksu:s0`, then deletes the channel sockets with real root.
+
+Attempts are probabilistic (an allocator race): roughly 1 in 2–10 wins, and **only one attempt may run
+at a time** — concurrent attempts share one per-uid pipe-page budget and both die. The script enforces
+this with an `flock`; do not work around it.
+
+### 3. Keep it rooted across reboots — the watcher
+
+Two edits first, because the files were written for our server: set `WORK=` in
+`scripts/phone_autoroot.sh` to your clone, and set `User=` in `scripts/phone-autoroot.service` to your
+username.
+
+```bash
+sudo cp scripts/phone_autoroot.sh /usr/local/sbin/
+sudo cp scripts/phone-autoroot.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now phone-autoroot
+journalctl -f -u phone-autoroot
+```
+
+The watcher runs every 20 s: if a device is present and not rooted, it runs `solid_root.sh 8`.
+**Stop it before unplugging the phone** — a failed run retries for up to 8 boots:
+
+```bash
+sudo systemctl stop phone-autoroot     # pause
+```
+
+### 4. Verify a rooted phone
+
+```bash
+adb shell "su -c id; getenforce; grep kernelsu /proc/modules"
 # uid=0(root) ... context=u:r:ksu:s0
 # Enforcing
 # kernelsu 212992 0 - Live 0x0000000000000000 (O)
 ```
+
+If `su` says `connect daemon: Permission denied`, a poisoned socket survived the reboot: delete
+`/data/local/tmp/temp_su.sock` and `/data/local/tmp/su_temp.sock` (with real root if you still have
+it) and reboot once.
 
 ---
 

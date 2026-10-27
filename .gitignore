@@ -3,6 +3,9 @@
 # Commit it if you want it self-contained; remove the line to include it.
 firmware/boot.img
 
+# Runtime logs written by solid_root.sh / the watcher
+logs/
+
 # OS / editor cruft
 .DS_Store
 *.swp

@@ -27,14 +27,22 @@
 # ONLY ksud-e3q-S9280ZCS6DZF2-kdp may be loaded: ksud-e3q-S928USQS6DZF2-kdp patches sys_call_table and
 # Samsung RKP resets the phone instantly (handoff §8, /proc/last_kmsg).
 #
-# usage: bash solid_root.sh [max_boots]
+# usage: bash scripts/solid_root.sh [max_boots]
+#   First run only: push the three files to the phone (see INSTALL.md step 2).
 set -u
-cd /srv/storage/work/s24-root-payloads-2026-09-30
+# Work from the root of this clone, wherever the script was invoked from, so logs land inside the repo.
+REPO="$(cd "$(dirname "$0")/.." && pwd)" || exit 1
+cd "$REPO" || exit 1
 MAXBOOTS=${1:-8}
 LOG=logs/host/solid_root_$(date +%Y%m%d_%H%M%S).log
 mkdir -p logs/host
-SO=${SOLID_PRELOAD:-/data/local/tmp/cve-e1q-101-stable.so}
-H=${SOLID_HELPER:-/data/local/tmp/cve-2026-43499-root}
+# Defaults are the SHIPPED pair: backups/cve-e1q-101-stable.sutemp.so pushed as
+# /data/local/tmp/cve-e1q-102-stable.so, and backups/cve-2026-43499-root.sutemp pushed as
+# /data/local/tmp/cve-2026-43499-root2. Their channel socket is renamed, so they cannot inherit a
+# poisoned inode left by an earlier boot (see the handoff, "poisoned socket"). Override with
+# SOLID_PRELOAD / SOLID_HELPER if you are using the un-renamed .proven pair.
+SO=${SOLID_PRELOAD:-/data/local/tmp/cve-e1q-102-stable.so}
+H=${SOLID_HELPER:-/data/local/tmp/cve-2026-43499-root2}
 LOADER_SRC=/data/local/tmp/ksud-candB           # ksud-e3q-S9280ZCS6DZF2-kdp md5 939a2f454946baf9de4409d16c5a2180
 KSUD=/data/adb/ksud                             # KSUD_PATH — persistent
 KSUD_MD5=939a2f454946baf9de4409d16c5a2180
