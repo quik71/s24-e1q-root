@@ -50,6 +50,7 @@ backups/                 Proven build artifacts (the helper + preload that deliv
 kernelsu/                The one KernelSU loader that works on this device
 native-module/           Our own native e1q kernelsu.ko + the GKI build script
 scripts/                 solid_root.sh (the procedure), phone_autoroot.sh (the watcher), the unit
+tools/check-docs.py      machine-checks the user docs (paths, md5s, promised output, paste safety)
 INSTALL.md               THE SHORT VERSION — start here if you just want your phone rooted
 firmware/                boot.img for this device (the patch target for the persistence route)
 docs/                    The full handoff write-up (read this first)
@@ -60,6 +61,9 @@ docs/                    The full handoff write-up (read this first)
 ## How to use it
 
 > If you just want your phone rooted and don't care how, read **[INSTALL.md](INSTALL.md)** instead.
+> It is written for a first-time reader **and** for a chatbot reading it to one — it has a glossary,
+> literal expected output for every command, and an exact-words error table. Keep both files honest by
+> running `python3 tools/check-docs.py` before you commit a change to either.
 
 ### 0. Check your device matches before anything else
 
@@ -86,8 +90,7 @@ misleading `CANNOT LINK EXECUTABLE … is not accessible for the namespace`.
 adb push backups/cve-e1q-101-stable.sutemp.so /data/local/tmp/cve-e1q-102-stable.so
 adb push backups/cve-2026-43499-root.sutemp   /data/local/tmp/cve-2026-43499-root2
 adb push kernelsu/ksud-e3q-S9280ZCS6DZF2-kdp  /data/local/tmp/ksud-candB
-adb shell chmod 755 /data/local/tmp/cve-e1q-102-stable.so \
-                  /data/local/tmp/cve-2026-43499-root2 /data/local/tmp/ksud-candB
+adb shell chmod 755 /data/local/tmp/cve-e1q-102-stable.so /data/local/tmp/cve-2026-43499-root2 /data/local/tmp/ksud-candB
 ```
 
 Use the **`.sutemp`** pair (socket-renamed). The `.proven` pair is the original, kept for the
